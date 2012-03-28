@@ -4,38 +4,46 @@ import struct
 import os
 from time import strftime, localtime
 from collections import namedtuple
+import sys
 
-PG_DATA =  "/Users/lhcezar/postgres/9.0/data/" 
+# from format import Struct, Type
+
+PG_DATA =  "/Users/lhcezar/postgres/9.0/data/"
+
+# enabled only at development time
+DEBUG = True
 pg_control_file = "global/pg_control"
 
-__all__ = ["ControlFileData"]
+__all__ = ["ControlFile"]
 
 (DB_STARTUP, DB_SHUTDOWNED, DB_SHUTDOWNED_IN_RECOVERY
     , DB_SHUTDOWNING, DB_IN_CRASH_RECOVERY, DB_IN_ARCHIVE_RECOVERY,
     DB_IN_PRODUCTION
 ) = range(0, 7)
 
-class ControlFileData(object):
+Checkpoint = namedtuple('Checkpoint', 'xrecid xrecoff lastcheck_xrecid lastcheck_xrecoff')
 
+class ControlFile(object):
     control = {}
     major_version = "0.0"
 
     # see pg_control.h
     format_char = {
-        "9.0": ("@Q2iQQ4i",48, 
-            ('system_identifier', 'pg_control_version', 
-            'catalog_version_no', 'state', 'time', 'checkpoint-xrecid',
-            'checkpoint-xrecoff', 'lastcheck-xrecid','lastcheck-xrecoff'
-
-            )),
-        "9.1": "xxxx"
+        "9.0": ("@QiiQQiiii",
+            ('system_identifier', 'pg_control_version',
+            'catalog_version_no', 'state', 'time'
+                ,'checkpoint_xrecid'
+                ,'checkpoint_xrecoff'
+                ,'lastcheck_xrecid'
+                ,'lastcheck_xrecoff'
+            ))
+        ,"9.1": "xxxx"
     }
-    
     def __init__(self):
+        self._check_version()
         self.process_controlfile()
 
     def _check_version(self):
-        
         try:
             with open(PG_DATA + "/PG_VERSION", "r") as version:
                 self.major_version = version.read(3)
@@ -73,12 +81,16 @@ class ControlFileData(object):
     def process_controlfile(self):
         records = self._get_data_file()
 
-        if self._check_version():
+        if self.major_version:
             fchar = self.format_char[self.major_version]
+            format = fchar[0]
+            size = struct.calcsize(format)
+
             # @todo little-endians could mess up with it
-            values = struct.unpack(fchar[0], records[0:fchar[1]])
-            self.control = dict(zip(fchar[2], values))
-            print self.control
+            values = struct.unpack(format, records[0:size])
+            self.control = dict(zip(fchar[1], values))
+            if DEBUG:
+                print self.control
 
     def _extract_member(self, offset, size):
         """ @todo extract members from ControlFile struct by offset """
@@ -89,7 +101,6 @@ class ControlFileData(object):
 
         with open(pg_control, "rb") as controlfile:
             data = controlfile.read()
-
 
         return data
     """ @todo check crc algorithm perhaps using zlib.crc32 """
@@ -109,6 +120,5 @@ class ControlFileData(object):
 
 
 if __name__ == "__main__":
-    c = ControlFileData()
+    c = ControlFile()
     print c
-    print c.major_version
