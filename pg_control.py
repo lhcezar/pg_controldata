@@ -27,6 +27,11 @@ class ControlFile(object):
     control = {}
     major_version = "0.0"
 
+    XLogRecPtr = "2i"
+    Checkpoint = ""
+    uint64 = "L"
+    pg_time_t = "i"
+
     # see pg_control.h
     format_char = {
         "9.0": ("@QiiQQiiii",
@@ -42,6 +47,15 @@ class ControlFile(object):
     def __init__(self):
         self._check_version()
         self.process_controlfile()
+
+    def system_information(self):
+        system_identifier, pg_control_version,
+        catalog_version_no, state, time = struct.unpack()
+
+    def version():
+        pass
+
+
 
     def _check_version(self):
         try:
