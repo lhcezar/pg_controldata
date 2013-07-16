@@ -8,7 +8,8 @@ import sys
 
 # from format import Struct, Type
 
-PG_DATA =  "/Users/lhcezar/postgres/9.0/data/"
+PG_DATA = "/Users/lhcezar/postgres/9.0/data/"
+PG_DATA = "/Users/lhcezar/postgres-9.2/data/"
 
 # enabled only at development time
 DEBUG = True
@@ -34,7 +35,7 @@ class ControlFile(object):
 
     # see pg_control.h
     format_char = {
-        "9.0": ("@QiiQQiiii",
+        "9.3": ("@QiiQQiiii",
             ('system_identifier', 'pg_control_version',
             'catalog_version_no', 'state', 'time'
                 ,'checkpoint_xrecid'
@@ -100,7 +101,7 @@ class ControlFile(object):
             format = fchar[0]
             size = struct.calcsize(format)
 
-            # @todo little-endians could mess up with it
+            # @todo little-endians could mess up it
             values = struct.unpack(format, records[0:size])
             self.control = dict(zip(fchar[1], values))
             if DEBUG:
@@ -112,9 +113,12 @@ class ControlFile(object):
 
     def _get_data_file(self):
         pg_control = PG_DATA + pg_control_file
-
-        with open(pg_control, "rb") as controlfile:
-            data = controlfile.read()
+        data = ()
+        try:
+            with open(pg_control, "rb") as controlfile:
+                data = controlfile.read()
+        except:
+            print "fudeu"
 
         return data
     """ @todo check crc algorithm perhaps using zlib.crc32 """
