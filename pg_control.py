@@ -4,12 +4,8 @@ import struct
 import os
 from time import strftime, localtime
 from collections import namedtuple
-import sys
 
 # from format import Struct, Type
-
-PG_DATA = "/Users/lhcezar/postgres/9.0/data/"
-PG_DATA = "/Users/lhcezar/postgres-9.2/data/"
 
 # enabled only at development time
 DEBUG = True
@@ -17,17 +13,18 @@ pg_control_file = "global/pg_control"
 
 __all__ = ["ControlFile"]
 
-(DB_STARTUP, DB_SHUTDOWNED, DB_SHUTDOWNED_IN_RECOVERY
-    , DB_SHUTDOWNING, DB_IN_CRASH_RECOVERY, DB_IN_ARCHIVE_RECOVERY,
+(DB_STARTUP, DB_SHUTDOWNED, DB_SHUTDOWNED_IN_RECOVERY,
+    DB_SHUTDOWNING, DB_IN_CRASH_RECOVERY, DB_IN_ARCHIVE_RECOVERY,
     DB_IN_PRODUCTION
-) = range(0, 7)
+        ) = range(0, 7)
 
-Checkpoint = namedtuple('Checkpoint', 'xrecid xrecoff lastcheck_xrecid lastcheck_xrecoff')
+Checkpoint = namedtuple('Checkpoint', "xrecid \
+        xrecoff lastcheck_xrecid lastcheck_xrecoff")
+
 
 class ControlFile(object):
     control = {}
     major_version = "0.0"
-
     XLogRecPtr = "2i"
     Checkpoint = ""
     uint64 = "L"
@@ -36,37 +33,33 @@ class ControlFile(object):
     # see pg_control.h
     format_char = {
         "9.3": ("@QiiQQiiii",
-            ('system_identifier', 'pg_control_version',
+        ('system_identifier', 'pg_control_version',
             'catalog_version_no', 'state', 'time'
                 ,'checkpoint_xrecid'
                 ,'checkpoint_xrecoff'
                 ,'lastcheck_xrecid'
                 ,'lastcheck_xrecoff'
-            ))
+                ))
         ,"9.1": "xxxx"
     }
-    def __init__(self):
-        self._check_version()
+    def __init__(self, datadir):
+        self.datadir = datadir
         self.process_controlfile()
 
-    def system_information(self):
-        system_identifier, pg_control_version,
-        catalog_version_no, state, time = struct.unpack()
-
-    def version():
-        pass
-
-
-
     def _check_version(self):
+        datadir = self.datadir
+
+        if not os.path.isdir(datadir):
+            raise Exception("datadir {0} doesn't exist".format(datadir))
+            return False
         try:
-            with open(PG_DATA + "/PG_VERSION", "r") as version:
-                self.major_version = version.read(3)
+            with open(datadir + "/PG_VERSION", "r") as version:
+                self.major_version = version.read(3).strip()
                 return True
         except IOError:
             """ @todo use logger """
             print "Version file not found"
-            self.major_version = "0.0"
+            return False
 
     def _enum_state(self, code_state):
         msg_state = [
@@ -96,7 +89,7 @@ class ControlFile(object):
     def process_controlfile(self):
         records = self._get_data_file()
 
-        if self.major_version:
+        if self._check_version():
             fchar = self.format_char[self.major_version]
             format = fchar[0]
             size = struct.calcsize(format)
@@ -112,13 +105,14 @@ class ControlFile(object):
         pass
 
     def _get_data_file(self):
-        pg_control = PG_DATA + pg_control_file
+        datadir = self.datadir
+        pg_control = datadir + pg_control_file
         data = ()
         try:
             with open(pg_control, "rb") as controlfile:
                 data = controlfile.read()
         except:
-            print "fudeu"
+            print "Fail to get controlfile"
 
         return data
     """ @todo check crc algorithm perhaps using zlib.crc32 """
@@ -135,8 +129,3 @@ class ControlFile(object):
                 , self._format_time(self.time)
             )
         return str_c.strip()
-
-
-if __name__ == "__main__":
-    c = ControlFile()
-    print c
