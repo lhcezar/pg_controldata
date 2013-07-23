@@ -2,7 +2,8 @@ language: python
 services: postgresql
 before_script:
   - psql -c "create database controlfile;" -U postgres
-  - source t/setup.sh
+#  - source t/setup.sh
+  - export PGDATA=`psql -Atc "show data_directory;" -U postgres
 python:
   - "2.7"
-script: sudo /usr/local/bin/nosetests
+script: nosetests
