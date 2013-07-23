@@ -13,11 +13,6 @@ pg_control_file = "global/pg_control"
 
 __all__ = ["ControlFile"]
 
-(DB_STARTUP, DB_SHUTDOWNED, DB_SHUTDOWNED_IN_RECOVERY,
-    DB_SHUTDOWNING, DB_IN_CRASH_RECOVERY, DB_IN_ARCHIVE_RECOVERY,
-    DB_IN_PRODUCTION
-        ) = range(0, 7)
-
 Checkpoint = namedtuple('Checkpoint', "xrecid \
         xrecoff lastcheck_xrecid lastcheck_xrecoff")
 
@@ -34,14 +29,15 @@ class ControlFile(object):
     format_char = {
         "9.3": ("@QiiQQiiii",
         ('system_identifier', 'pg_control_version',
-            'catalog_version_no', 'state', 'time'
-                ,'checkpoint_xrecid'
-                ,'checkpoint_xrecoff'
-                ,'lastcheck_xrecid'
-                ,'lastcheck_xrecoff'
-                ))
-        ,"9.1": "xxxx"
+            'catalog_version_no', 'state', 'time',
+        'checkpoint_xrecid',
+        'checkpoint_xrecoff',
+        'lastcheck_xrecid',
+        'lastcheck_xrecoff')
+        ),
+        "9.1": "xxxx"
     }
+
     def __init__(self, datadir):
         self.datadir = datadir
         self.process_controlfile()
@@ -105,11 +101,12 @@ class ControlFile(object):
     def _extract_member(self, offset, size):
         """ @todo extract members from ControlFile struct by offset """
         pass
-    
+
     def _is_valid_datadir(self, datadir):
         pgdata = os.listdir(datadir)
-        pgdirs = ['base','global','pg_clog']
-        return list(set(pgdirs).intersection(set(pgdata))).sort() == pgdirs.sort()
+        pgdirs = ['base', 'global', 'pg_clog']
+        r = list(set(pgdirs).intersection(set(pgdata))).sort() == pgdirs.sort()
+        return r
 
     def _get_data_file(self):
         datadir = self.datadir
@@ -132,7 +129,6 @@ class ControlFile(object):
         Database state: {0}
         Last pg_control update: {1}\n
 
-        """.format(self._enum_state(self.state)
-                , self._format_time(self.time)
-            )
+        """.format(self._enum_state(self.state),
+                self._format_time(self.time))
         return str_c.strip()
