@@ -49,10 +49,12 @@ class ControlFile(object):
     def _check_version(self):
         datadir = self.datadir
 
-        if not os.path.isdir(datadir):
-            raise Exception("datadir {0} doesn't exist".format(datadir))
-            return False
         try:
+            if not os.path.isdir(datadir):
+                raise Exception("datadir {0} aren't acessible".format(datadir))
+            elif not self._is_valid_datadir(datadir):
+                raise Exception("Invalid $PGDATA directory")
+
             with open(datadir + "/PG_VERSION", "r") as version:
                 self.major_version = version.read(3).strip()
                 return True
@@ -94,7 +96,7 @@ class ControlFile(object):
             format = fchar[0]
             size = struct.calcsize(format)
 
-            # @todo little-endians could mess up it
+            # @todo little-endians could mess up
             values = struct.unpack(format, records[0:size])
             self.control = dict(zip(fchar[1], values))
             if DEBUG:
@@ -103,6 +105,11 @@ class ControlFile(object):
     def _extract_member(self, offset, size):
         """ @todo extract members from ControlFile struct by offset """
         pass
+    
+    def _is_valid_datadir(self, datadir):
+        pgdata = os.listdir(datadir)
+        pgdirs = ['base','global','pg_clog']
+        return list(set(pgdirs).intersection(set(pgdata))).sort() == pgdirs.sort()
 
     def _get_data_file(self):
         datadir = self.datadir
