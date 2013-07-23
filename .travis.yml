@@ -5,4 +5,4 @@ before_script:
   - source t/setup.sh
 python:
   - "2.7"
-script: sudo nosetests
+script: sudo /usr/local/bin/nosetests
