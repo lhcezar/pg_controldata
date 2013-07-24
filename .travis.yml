@@ -1,9 +1,13 @@
 language: python
-services: postgresql
+#services: postgresql
 before_script:
-  - psql -c "create database controlfile;" -U postgres
+#  - psql -c "create database controlfile;" -U postgres
 #  - source t/setup.sh
-  - export PGDATA=`psql -Atc "show data_directory;" -U postgres
+  - mkdir pgdata
+  - initdb -D pgdata
+  - pg_ctl -D pgdata start
+  - export PGDATA=pgdata
+#  - export PGDATA=`psql -Atc "show data_directory;" -U postgres
 python:
   - "2.7"
 script: nosetests
