@@ -9,6 +9,7 @@ before_script:
    - whoami
    - sudo pg_createcluster -d pgdata 9.1 test -u travis
    - export PGDATA=pgdata
+   - ls $PGDATA
 
 #  - export PGDATA=`psql -Atc "show data_directory;" -U postgres
 python:
