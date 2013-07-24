@@ -35,7 +35,14 @@ class ControlFile(object):
         'lastcheck_xrecid',
         'lastcheck_xrecoff')
         ),
-        "9.1": "xxxx"
+        "9.1": ("@QiiQQiiii",
+        ('system_identifier', 'pg_control_version',
+            'catalog_version_no', 'state', 'time',
+        'checkpoint_xrecid',
+        'checkpoint_xrecoff',
+        'lastcheck_xrecid',
+        'lastcheck_xrecoff')
+        )
     }
 
     def __init__(self, datadir):
