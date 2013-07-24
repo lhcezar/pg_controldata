@@ -1,17 +1,10 @@
 language: python
 services: postgresql
 before_script:
-#  - psql -c "create database controlfile;" -U postgres
-#  - source t/setup.sh
    - mkdir pgdata
-#  - initdb -D pgdata
-#  - pg_ctl -D pgdata start
-   - whoami
    - sudo pg_createcluster -d pgdata 9.1 test -u travis
-   - export PGDATA=pgdata
-   - ls $PGDATA
+   - export PGDATA=pgdata/
 
-#  - export PGDATA=`psql -Atc "show data_directory;" -U postgres
 python:
   - "2.7"
 script: nosetests

@@ -42,7 +42,7 @@ class ControlFile(object):
         'checkpoint_xrecoff',
         'lastcheck_xrecid',
         'lastcheck_xrecoff')
-        )
+        ),
     }
 
     def __init__(self, datadir):
@@ -112,6 +112,7 @@ class ControlFile(object):
     def _is_valid_datadir(self, datadir):
         pgdata = os.listdir(datadir)
         pgdirs = ['base', 'global', 'pg_clog']
+        # check to see pgdirs in $PGDATA
         r = list(set(pgdirs).intersection(set(pgdata))).sort() == pgdirs.sort()
         return r
 
@@ -122,8 +123,8 @@ class ControlFile(object):
         try:
             with open(pg_control, "rb") as controlfile:
                 data = controlfile.read()
-        except:
-            print "Fail to get controlfile"
+        except IOError as e:
+            print "Fail to get controlfile:", e
 
         return data
     """ @todo check crc algorithm perhaps using zlib.crc32 """
