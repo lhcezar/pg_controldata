@@ -6,9 +6,9 @@ before_script:
    - mkdir pgdata
 #  - initdb -D pgdata
 #  - pg_ctl -D pgdata start
-#  - export PGDATA=pgdata
    - whoami
-   - sudo pg_createcluster -d pgdata 9.1 test 
+   - sudo pg_createcluster -d pgdata 9.1 test -u travis
+   - export PGDATA=pgdata
 
 #  - export PGDATA=`psql -Atc "show data_directory;" -U postgres
 python:
