@@ -6,6 +6,8 @@ pg_controldata
 
 Script to extract information from /ControlFileData/ struct (pg_control file).
 
+[![Build Status](https://travis-ci.org/lhcezar/pg_controldata.png?branch=master)](https://travis-ci.org/lhcezar/pg_controldata)
+
 Usage:
 
 pg_control.py --version_number
