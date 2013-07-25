@@ -5,48 +5,25 @@ import os
 from time import strftime, localtime
 from collections import namedtuple
 
-# from format import Struct, Type
-
 # enabled only at development time
 DEBUG = True
 pg_control_file = "global/pg_control"
 
-__all__ = ["ControlFile"]
-
-Checkpoint = namedtuple('Checkpoint', "xrecid \
-        xrecoff lastcheck_xrecid lastcheck_xrecoff")
+__all__ = ["ControlFile", "ControlFileData"]
 
 
 class ControlFile(object):
-    control = {}
     major_version = "0.0"
     XLogRecPtr = "2i"
     Checkpoint = ""
     uint64 = "L"
     pg_time_t = "i"
 
-    # see pg_control.h
-    format_char = {
-        "9.3": ("@QiiQQiiii",
-        ('system_identifier', 'pg_control_version',
-            'catalog_version_no', 'state', 'time',
-        'checkpoint_xrecid',
-        'checkpoint_xrecoff',
-        'lastcheck_xrecid',
-        'lastcheck_xrecoff')
-        ),
-        "9.1": ("@QiiQQiiii",
-        ('system_identifier', 'pg_control_version',
-            'catalog_version_no', 'state', 'time',
-        'checkpoint_xrecid',
-        'checkpoint_xrecoff',
-        'lastcheck_xrecid',
-        'lastcheck_xrecoff')
-        ),
-    }
-
     def __init__(self, datadir):
         self.datadir = datadir
+        self._check_version()
+        control_file_data = ControlFileData(self.major_version)
+        self.control = control_file_data.__dict__
         self.process_controlfile()
 
     def _check_version(self):
@@ -84,8 +61,10 @@ class ControlFile(object):
 
     def __getattr__(self, name):
         row = self.control
+
         try:
-            attr = row[name]
+            # argh!
+            attr = eval("row."+name)
         except KeyError:
             attr = None
 
@@ -95,18 +74,26 @@ class ControlFile(object):
         records = self._get_data_file()
 
         if self._check_version():
-            fchar = self.format_char[self.major_version]
-            format = fchar[0]
-            size = struct.calcsize(format)
+            control_file_data = ControlFileData(self.major_version)
 
-            # @todo little-endians could mess up
-            values = struct.unpack(format, records[0:size])
-            self.control = dict(zip(fchar[1], values))
-            if DEBUG:
-                print self.control
+            def get_str_fmt(cf):
+                for key, member in cf.iteritems():
+                    if type(member) is not dict:
+                        yield member, key
+
+            pg_control_members = control_file_data.__dict__
+            # @todo needs refactoring..
+            members = tuple(i[1] for i in get_str_fmt(pg_control_members))
+            struct_keys = (i[0] for i in get_str_fmt(pg_control_members))
+
+            fmt = ''.join(struct_keys)
+
+            size = struct.calcsize(fmt)
+            Container = namedtuple("Container", members)
+
+            self.control = Container._make(struct.unpack(fmt, records[0:size]))
 
     def _extract_member(self, offset, size):
-        """ @todo extract members from ControlFile struct by offset """
         pass
 
     def _is_valid_datadir(self, datadir):
@@ -140,3 +127,22 @@ class ControlFile(object):
         """.format(self._enum_state(self.state),
                 self._format_time(self.time))
         return str_c.strip()
+
+
+# dummy class
+# see pgcontrol.h
+class ControlFileData(object):
+    def __init__(self, version):
+        self.system_identifier = "Q"
+        self.pg_control_version = "i"
+        self.catalog_version_no = "i"
+        self.state = "i"
+        self.time = "i"
+        self.checkPoint = {
+            "xlogid": "i",
+            "xrecoff": "i"
+        }
+        self.prevCheckPoint = {
+            "xlogid": "i",
+            "xrecoff": "i"
+        }

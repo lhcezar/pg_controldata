@@ -1,6 +1,6 @@
 import unittest
 import os
-from pg_control import ControlFile
+from pg_control import ControlFile, ControlFileData
 
 
 class ControlFileTestCase(unittest.TestCase):
@@ -8,6 +8,7 @@ class ControlFileTestCase(unittest.TestCase):
     def setUp(self):
         self.config_pg_data()
         self.cf = ControlFile(self.pgdata)
+        self.data = ControlFileData(self.cf.major_version)
 
     def config_pg_data(self):
         if os.environ.get("PGDATA"):
@@ -15,6 +16,9 @@ class ControlFileTestCase(unittest.TestCase):
         else:
             # remove to ini file
             self.pgdata = "/Users/lhcezar/postgres-9.2/"
+
+    def test_size_of_system_identifier(self):
+        self.assertEqual(self.data.system_identifier, "Q")
 
     def test_is_valid_datadir(self):
         self.assertTrue(self.cf._is_valid_datadir(self.pgdata))
