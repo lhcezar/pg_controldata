@@ -1,8 +1,6 @@
- WORK IN PROGRESS  
-===================
+# WORK IN PROGRESS  
 
-pg_controldata
---------------
+## pg_controldata
 
 Script to extract information from /ControlFileData/ struct (pg_control file).
 
@@ -10,7 +8,7 @@ Script to extract information from /ControlFileData/ struct (pg_control file).
 
 Usage:
 
-pg_control.py --version_number
+`pg_control.py --version_number`
 
 Usage:
   pg_control.py [OPTION] [DATADIR]

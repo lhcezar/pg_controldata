@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
 import struct
+from ctypes import Structure, c_int, c_longlong, c_float, c_ulonglong, c_long
 import os
 from time import strftime, localtime
-from collections import namedtuple
+import re
 
-# enabled only at development time
+
 DEBUG = True
+DEFAULTS = None
+
 pg_control_file = "global/pg_control"
 
 __all__ = ["ControlFile", "ControlFileData"]
@@ -22,8 +25,6 @@ class ControlFile(object):
     def __init__(self, datadir):
         self.datadir = datadir
         self._check_version()
-        control_file_data = ControlFileData(self.major_version)
-        self.control = control_file_data.__dict__
         self.process_controlfile()
 
     def _check_version(self):
@@ -63,35 +64,31 @@ class ControlFile(object):
         row = self.control
 
         try:
-            # argh!
-            attr = eval("row."+name)
+            attr = row[name]
+
         except KeyError:
             attr = None
 
         return attr
 
     def process_controlfile(self):
-        records = self._get_data_file()
+        dat = self._get_data_file()
 
         if self._check_version():
-            control_file_data = ControlFileData(self.major_version)
+            cfd = ControlFileData(self.major_version)
 
-            def get_str_fmt(cf):
-                for key, member in cf.iteritems():
-                    if type(member) is not dict:
-                        yield member, key
+            for i in cfd._fields_:
+                nmc = i[0]
+                fmt = cfd.map_format_type(nmc)
+                ofs = int(cfd.members_offset(nmc))
+                siz = int(cfd.member_size(nmc))
+                
+#                if isinstance(i, XLogRecPtr):
+#                    pass
 
-            pg_control_members = control_file_data.__dict__
-            # @todo needs refactoring..
-            members = tuple(i[1] for i in get_str_fmt(pg_control_members))
-            struct_keys = (i[0] for i in get_str_fmt(pg_control_members))
+                setattr(cfd, nmc, struct.unpack(fmt, dat[ofs:ofs+siz])[0])
 
-            fmt = ''.join(struct_keys)
-
-            size = struct.calcsize(fmt)
-            Container = namedtuple("Container", members)
-
-            self.control = Container._make(struct.unpack(fmt, records[0:size]))
+            self.control = cfd.__dict__
 
     def _extract_member(self, offset, size):
         pass
@@ -129,20 +126,95 @@ class ControlFile(object):
         return str_c.strip()
 
 
-# dummy class
+# Base class that represents a typical xlog record
+# see subclasses for more details
+class XLog(Structure):
+
+    def members_size(self, member=None):
+#        size = struct.calcsize(self.format_type())
+        am = self.all_members()
+        zf = map(lambda x: getattr(type(self), str(x[0])).size, am)
+        size = sum(zf)
+        return size
+
+    def member_size(self, member):
+        size = struct.calcsize(self.map_format_type(member))
+        return size
+
+    def all_members(self):
+        return self._fields_
+
+    def members_offset(self, member):
+        if member:
+            first_member = getattr(type(self), str(member))
+        else:
+            first_member = getattr(type(self), self._fields_[0][0])
+
+        ofs = re.search("type=(.*), ofs=(.*)(,.*)", str(first_member)).group(2)
+        return ofs
+
+    def member_type(self, attr):
+        member = getattr(type(self), str(attr))
+        attr_type = re.search("type=(.*)(,.*)(,.*)", str(member)).group(1)
+
+        return attr_type
+
+    def format_type(self):
+        return ''.join(map(self.map_format_type, self.all_members()))
+
+    def map_format_type(self, attr):
+        # mapping from ctype API to struct format string
+        fmt_str = {
+            "c_longlong": "@q",
+            "c_ulonglong": "Q",
+            "c_int": "i",
+            "c_ulong": "L",
+            "c_long": "l",
+            "c_float": "f"
+        }
+
+        try:
+            fmt = fmt_str[self.member_type(attr)]
+        except KeyError:
+            fmt = "i"
+        return fmt
+
+
+class XLogRecPtr(XLog):
+    _fields_ = [
+        ('xlogid', c_int),
+        ('xrecoff', c_int)
+    ]
+
+    def __init__(self, offset):
+        self.offset = offset
+
+
+class Checkpoint(object):
+
+    def __init__(self):
+        self.redo = XLogRecPtr()
+        self.ThisTimeLineId
+        self.nextXidEpoch
+        self.nextXid
+        self.nextOid
+        self.nextMulti
+
+
+# Dummy class representing a pointer to xlog
+# Another ways to make the same container would be using
+# struct.Structure. Needs more discuss around it.
 # see pgcontrol.h
-class ControlFileData(object):
+class ControlFileData(XLog):
+    #@todo Handling other members of ControlData
+    _fields_ = [
+        ('system_identifier', c_longlong),
+        ('pg_control_version', c_int),
+        ('catalog_version_no', c_int),
+        ('state', c_int),
+        ('time', c_int),
+#        ('checkPoint', XLogRecPtr)
+    ]
+
     def __init__(self, version):
-        self.system_identifier = "Q"
-        self.pg_control_version = "i"
-        self.catalog_version_no = "i"
-        self.state = "i"
-        self.time = "i"
-        self.checkPoint = {
-            "xlogid": "i",
-            "xrecoff": "i"
-        }
-        self.prevCheckPoint = {
-            "xlogid": "i",
-            "xrecoff": "i"
-        }
+        pass
